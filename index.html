@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b0e18">
+<title>Don't Tap Red! — 30 Second Challenge</title>
+<style>
+  :root{
+    --bg:#0b0e18;
+    --bg2:#121729;
+    --panel:#1a2036;
+    --border:#2a3354;
+    --text:#f2f5ff;
+    --muted:#8b96bd;
+    --green:#22e06b;
+    --green-dark:#0f9c46;
+    --red:#ff3b5c;
+    --red-dark:#b8102f;
+    --accent:#4da3ff;
+    --gold:#ffd166;
+    --radius:18px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #1b2a52 0%, transparent 60%),
+      radial-gradient(900px 500px at 90% 110%, #22183d 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:12px;
+    overflow:hidden;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  #app{
+    width:100%;
+    max-width:520px;
+    height:100%;
+    max-height:920px;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+
+  /* ---------- HUD ---------- */
+  #hud{
+    display:none;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:8px;
+    padding:10px 12px 12px;
+    align-items:center;
+  }
+  #hud.show{display:grid;}
+  .stat{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:8px 10px;
+    text-align:center;
+    min-width:0;
+  }
+  .stat .label{
+    font-size:10px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:700;
+  }
+  .stat .value{
+    font-size:22px;
+    font-weight:800;
+    line-height:1.1;
+    font-variant-numeric:tabular-nums;
+  }
+  #timeValue.warn{color:var(--red);}
+  #comboValue{color:var(--gold);}
+  #comboValue.zero{color:var(--muted);}
+
+  /* ---------- ARENA ---------- */
+  #arena{
+    flex:1;
+    position:relative;
+    border-radius:var(--radius);
+    background:
+      linear-gradient(180deg, rgba(77,163,255,.06), rgba(0,0,0,0) 40%),
+      var(--bg2);
+    border:1px solid var(--border);
+    overflow:hidden;
+    touch-action:none;
+    display:none;
+  }
+  #arena.show{display:block;}
+  #targetLayer{position:absolute;inset:0;}
+
+  .target{
+    position:absolute;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    font-weight:800;
+    color:rgba(0,0,0,.35);
+    cursor:pointer;
+    border:2px solid rgba(255,255,255,.12);
+    will-change:transform,opacity;
+    transform:scale(.4);
+    opacity:0;
+    animation:popIn .18s ease-out forwards;
+    box-shadow:0 6px 18px rgba(0,0,0,.35), inset 0 -6px 14px rgba(0,0,0,.18);
+  }
+  @keyframes popIn{to{transform:scale(1);opacity:1;}}
+  .target.good{
+    background:radial-gradient(circle at 32% 28%, #6cffa3, var(--green) 58%, var(--green-dark));
+  }
+  .target.bad{
+    background:radial-gradient(circle at 32% 28%, #ff8aa0, var(--red) 58%, var(--red-dark));
+  }
+  .target.hit{
+    animation:popOut .22s ease-in forwards;
+    pointer-events:none;
+  }
+  @keyframes popOut{
+    to{transform:scale(1.55);opacity:0;}
+  }
+
+  /* floating score text */
+  .float{
+    position:absolute;
+    font-weight:800;
+    font-size:20px;
+    pointer-events:none;
+    animation:floatUp .7s ease-out forwards;
+    text-shadow:0 2px 8px rgba(0,0,0,.6);
+    z-index:5;
+  }
+  @keyframes floatUp{
+    0%{transform:translate(-50%,-50%) scale(.8);opacity:1;}
+    100%{transform:translate(-50%,-160%) scale(1.15);opacity:0;}
+  }
+
+  /* screen shake on red */
+  .shake{animation:shake .32s ease-in-out;}
+  @keyframes shake{
+    0%,100%{transform:translateX(0);}
+    20%{transform:translateX(-8px);}
+    40%{transform:translateX(7px);}
+    60%{transform:translateX(-5px);}
+    80%{transform:translateX(4px);}
+  }
+
+  /* ---------- SCREENS ---------- */
+  .screen{
+    flex:1;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:20px;
+    gap:14px;
+  }
+  .screen.show{display:flex;}
+  .logo{
+    font-size:clamp(30px,9vw,46px);
+    font-weight:900;
+    letter-spacing:-.02em;
+    line-height:1.05;
+    margin:0;
+  }
+  .logo .red{color:var(--red);}
+  .logo .green{color:var(--green);}
+  .tagline{
+    color:var(--muted);
+    font-size:15px;
+    max-width:340px;
+    line-height:1.5;
+    margin:0;
+  }
+  .btn{
+    appearance:none;
+    border:none;
+    border-radius:14px;
+    padding:16px 28px;
+    font-size:18px;
+    font-weight:800;
+    font-family:inherit;
+    letter-spacing:.01em;
+    cursor:pointer;
+    transition:transform .08s ease, filter .15s ease;
+    min-height:56px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    max-width:340px;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn:focus-visible{outline:3px solid var(--accent);outline-offset:3px;}
+  .btn-primary{
+    background:linear-gradient(180deg,#3ee87a,#16b554);
+    color:#062a14;
+    box-shadow:0 10px 24px rgba(34,224,107,.28);
+  }
+  .btn-secondary{
+    background:var(--panel);
+    color:var(--text);
+    border:1px solid var(--border);
+  }
+  .btn-share{
+    background:linear-gradient(180deg,#5cb0ff,#2f7fe0);
+    color:#06172c;
+    box-shadow:0 10px 24px rgba(77,163,255,.28);
+  }
+  .btn-row{
+    display:flex;
+    gap:10px;
+    width:100%;
+    max-width:340px;
+  }
+  .btn-row .btn{max-width:none;flex:1;padding-left:14px;padding-right:14px;}
+
+  /* rules list */
+  .rules{
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    max-width:340px;
+    width:100%;
+  }
+  .rules li{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 14px;
+    font-size:14px;
+    color:var(--muted);
+    text-align:left;
+    line-height:1.35;
+  }
+  .dot{
+    width:18px;height:18px;border-radius:50%;flex:none;
+    box-shadow:inset 0 -3px 6px rgba(0,0,0,.25);
+  }
+  .dot.good{background:var(--green);}
+  .dot.bad{background:var(--red);}
+  .dot.gold{background:var(--gold);}
+
+  /* records strip */
+  .records{
+    display:flex;
+    gap:10px;
+    width:100%;
+    max-width:340px;
+  }
+  .record{
+    flex:1;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px;
+    text-align:center;
+  }
+  .record .label{
+    font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:700;
+  }
+  .record .value{
+    font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;
+  }
+  .record .value.gold{color:var(--gold);}
+
+  /* challenge banner */
+  .banner{
+    display:none;
+    width:100%;
+    max-width:340px;
+    background:linear-gradient(180deg, rgba(255,209,102,.14), rgba(255,209,102,.05));
+    border:1px solid rgba(255,209,102,.45);
+    border-radius:12px;
+    padding:12px 14px;
+    font-size:14px;
+    color:#ffe6a3;
+    line-height:1.4;
+  }
+  .banner.show{display:block;}
+  .banner strong{color:var(--gold);}
+
+  /* game over */
+  .finalScore{
+    font-size:clamp(60px,18vw,88px);
+    font-weight:900;
+    line-height:.95;
+    letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums;
+    background:linear-gradient(180deg,#ffffff,#8fb4ff);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    margin:0;
+  }
+  .finalLabel{
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--muted);font-weight:800;margin:0;
+  }
+  .msg{
+    font-size:17px;font-weight:700;color:var(--text);
+    margin:0;max-width:320px;line-height:1.35;
+  }
+  .sub{
+    font-size:13px;color:var(--muted);margin:0;
+  }
+  .newBest{
+    display:none;
+    background:linear-gradient(90deg,#ffd166,#ff9f1c);
+    color:#3a2400;
+    font-weight:900;font-size:12px;letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:6px 14px;border-radius:999px;
+  }
+  .newBest.show{display:inline-block;animation:popIn .3s ease-out;}
+
+  /* floating mute button */
+  #muteBtn{
+    position:absolute;
+    top:10px;right:10px;
+    z-index:50;
+    width:44px;height:44px;
+    border-radius:12px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-size:20px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #muteBtn:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+
+  /* optional ad slot — clearly separated, not near controls */
+  #adSlot{
+    display:none;
+    margin-top:10px;
+    min-height:60px;
+    border:1px dashed var(--border);
+    border-radius:12px;
+    color:var(--muted);
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    align-items:center;
+    justify-content:center;
+  }
+  #adSlot.enabled{display:flex;}
+
+  /* reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    .target{animation:none;transform:scale(1);opacity:1;}
+    .target.hit{animation:none;opacity:0;}
+    .float{animation:none;opacity:0;}
+    .shake{animation:none;}
+    .newBest.show{animation:none;}
+  }
+
+  /* small phones */
+  @media (max-height: 640px){
+    .stat .value{font-size:18px;}
+    .btn{padding:13px 20px;min-height:50px;font-size:16px;}
+    .screen{gap:10px;padding:14px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <button id="muteBtn" type="button" aria-label="Toggle sound" title="Toggle sound">🔊</button>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud" aria-live="polite">
+    <div class="stat">
+      <div class="label">Score</div>
+      <div class="value" id="scoreValue">0</div>
+    </div>
+    <div class="stat">
+      <div class="label">Time</div>
+      <div class="value" id="timeValue">30</div>
+    </div>
+    <div class="stat">
+      <div class="label">Combo</div>
+      <div class="value zero" id="comboValue">x1</div>
+    </div>
+  </div>
+
+  <!-- ================= ARENA ================= -->
+  <div id="arena">
+    <div id="targetLayer"></div>
+  </div>
+
+  <!-- ================= START SCREEN ================= -->
+  <section class="screen show" id="startScreen">
+    <h1 class="logo">DON'T TAP <span class="red">RED!</span></h1>
+    <p class="tagline">Tap every <span style="color:var(--green);font-weight:800">green</span> target. Avoid every <span style="color:var(--red);font-weight:800">red</span> one. You have 30 seconds.</p>
+
+    <div class="banner" id="challengeBanner" role="status"></div>
+
+    <ul class="rules">
+      <li><span class="dot good"></span>Tap green targets for points</li>
+      <li><span class="dot bad"></span>Tap red targets — combo resets</li>
+      <li><span class="dot gold"></span>Chain taps to build a combo multiplier</li>
+    </ul>
+
+    <div class="records">
+      <div class="record">
+        <div class="label">Best</div>
+        <div class="value gold" id="bestValue">0</div>
+      </div>
+      <div class="record">
+        <div class="label">Today</div>
+        <div class="value" id="dailyBestValue">0</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="startBtn" type="button">▶ Play Now</button>
+  </section>
+
+  <!-- ================= GAME OVER SCREEN ================= -->
+  <section class="screen" id="overScreen">
+    <div class="newBest" id="newBestTag">🎉 New Personal Best!</div>
+    <p class="finalLabel">Final Score</p>
+    <p class="finalScore" id="finalScore">0</p>
+    <p class="msg" id="resultMsg"></p>
+    <p class="sub" id="resultSub"></p>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="againBtn" type="button">↻ Replay</button>
+      <button class="btn btn-share" id="shareBtn" type="button">↗ Share</button>
+    </div>
+    <button class="btn btn-secondary" id="menuBtn" type="button" style="max-width:340px">← Main Menu</button>
+
+    <div id="adSlot" aria-hidden="true">Optional ad space — clearly separated from gameplay</div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     CONFIG
+     ============================================================ */
+  const CFG = {
+    ROUND_MS: 30000,
+    BASE_TARGETS: 6,        // targets on screen at low score
+    MAX_TARGETS: 14,        // cap as score grows
+    RED_RATIO_START: 0.22,  // fraction of reds at score 0
+    RED_RATIO_MAX: 0.48,    // fraction of reds at high score
+    TARGET_MIN_PX: 54,
+    TARGET_MAX_PX: 92,
+    GOOD_POINTS: 10,
+    RED_PENALTY_POINTS: 25, // points removed on red tap
+    COMBO_STEP: 3,          // good taps needed to raise combo
+    COMBO_MAX: 5,
+    STORAGE_BEST: "dtr_best_v1",
+    STORAGE_MUTE: "dtr_mute_v1",
+    STORAGE_DAILY_PREFIX: "dtr_daily_v1_"
+  };
+
+  /* ============================================================
+     SAFE STORAGE (never throws)
+     ============================================================ */
+  const store = {
+    get(key){
+      try { return window.localStorage.getItem(key); } catch(e){ return null; }
+    },
+    set(key, val){
+      try { window.localStorage.setItem(key, String(val)); return true; } catch(e){ return false; }
+    }
+  };
+
+  /* ============================================================
+     URL PARAMS — validated, no injection
+     ============================================================ */
+  function readChallengeScore(){
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const raw = p.get("score");
+      if (raw === null) return null;
+      if (!/^\d{1,6}$/.test(raw)) return null;      // only digits, max 6
+      const n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n < 1 || n > 100000) return null;
+      return n;
+    } catch(e){ return null; }
+  }
+
+  /* ============================================================
+     DAILY SEED (deterministic for today)
+     ============================================================ */
+  function todayKey(){
+    const d = new Date();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return d.getFullYear() + "-" + m + "-" + day;
+  }
+  function seededRng(seed){
+    // mulberry32
+    let a = seed >>> 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* ============================================================
+     DOM
+     ============================================================ */
+  const $ = id => document.getElementById(id);
+  const el = {
+    app: $("app"),
+    hud: $("hud"),
+    score: $("scoreValue"),
+    time: $("timeValue"),
+    combo: $("comboValue"),
+    arena: $("arena"),
+    layer: $("targetLayer"),
+    startScreen: $("startScreen"),
+    overScreen: $("overScreen"),
+    startBtn: $("startBtn"),
+    againBtn: $("againBtn"),
+    shareBtn: $("shareBtn"),
+    menuBtn: $("menuBtn"),
+    bestValue: $("bestValue"),
+    dailyBestValue: $("dailyBestValue"),
+    challengeBanner: $("challengeBanner"),
+    newBestTag: $("newBestTag"),
+    finalScore: $("finalScore"),
+    resultMsg: $("resultMsg"),
+    resultSub: $("resultSub"),
+    muteBtn: $("muteBtn"),
+    adSlot: $("adSlot")
+  };
+
+  /* ============================================================
+     STATE
+     ============================================================ */
+  const state = {
+    running: false,
+    score: 0,
+    combo: 1,
+    comboProgress: 0,
+    best: 0,
+    startAt: 0,
+    endAt: 0,
+    rafId: 0,
+    gameOverFired: false,
+    muted: false,
+    rng: Math.random,
+    targets: new Set(),     // active target elements
+    targetSize: 72,
+    lastTickSecond: -1
+  };
+
+  /* ============================================================
+     AUDIO (Web Audio, no files)
+     ============================================================ */
+  let audioCtx = null;
+  function ensureAudio(){
+    if (state.muted) return null;
+    try {
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        audioCtx = new AC();
+      }
+      if (audioCtx.state === "suspended") audioCtx.resume().catch(()=>{});
+      return audioCtx;
+    } catch(e){ return null; }
+  }
+  function beep(freq, dur, type, vol){
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    try {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type || "sine";
+      o.frequency.value = freq;
+      g.gain.value = vol == null ? 0.08 : vol;
+      o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime;
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.start(t); o.stop(t + dur + 0.02);
+    } catch(e){ /* ignore */ }
+  }
+  function sfxGood(combo){ beep(520 + combo*90, 0.09, "sine", 0.07); }
+  function sfxBad(){ beep(160, 0.18, "square", 0.09); }
+  function sfxStart(){ beep(380, 0.10, "triangle", 0.07); setTimeout(()=>beep(620,0.12,"triangle",0.07),90); }
+  function sfxEnd(){ beep(300,0.15,"sine",0.08); setTimeout(()=>beep(220,0.2,"sine",0.08),140); }
+
+  /* ============================================================
+     PERSISTENCE
+     ============================================================ */
+  function loadBest(){
+    const raw = store.get(CFG.STORAGE_BEST);
+    const n = raw == null ? 0 : parseInt(raw, 10);
+    state.best = Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : 0;
+  }
+  function saveBest(v){
+    if (v > state.best){
+      state.best = v;
+      store.set(CFG.STORAGE_BEST, v);
+    }
+  }
+  function loadDailyBest(){
+    const key = CFG.STORAGE_DAILY_PREFIX + todayKey();
+    const raw = store.get(key);
+    const n = raw == null ? 0 : parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : 0;
+  }
+  function saveDailyBest(v){
+    const key = CFG.STORAGE_DAILY_PREFIX + todayKey();
+    const cur = loadDailyBest();
+    if (v > cur) store.set(key, v);
+  }
+  function loadMute(){
+    return store.get(CFG.STORAGE_MUTE) === "1";
+  }
+  function saveMute(m){
+    store.set(CFG.STORAGE_MUTE, m ? "1" : "0");
+  }
+
+  /* ============================================================
+     RENDERING — targets
+     ============================================================ */
+  function setTargetSize(){
+    const w = el.arena.clientWidth;
+    const h = el.arena.clientHeight;
+    const minDim = Math.min(w, h);
+    const size = Math.max(CFG.TARGET_MIN_PX, Math.min(CFG.TARGET_MAX_PX, minDim * 0.16));
+    state.targetSize = Math.round(size);
+  }
+
+  function removeTarget(node){
+    if (node && node.parentNode) node.parentNode.removeChild(node);
+    state.targets.delete(node);
+  }
+
+  function clearTargets(){
+    state.targets.forEach(t => { if (t.parentNode) t.parentNode.removeChild(t); });
+    state.targets.clear();
+    el.layer.innerHTML = "";
+  }
+
+  function spawnTarget(){
+    const layerW = el.arena.clientWidth;
+    const layerH = el.arena.clientHeight;
+    const size = state.targetSize;
+    if (layerW < size + 8 || layerH < size + 8) return;
+
+    // red ratio grows with score, capped
+    const progress = Math.min(1, state.score / 400);
+    const redRatio = CFG.RED_RATIO_START + (CFG.RED_RATIO_MAX - CFG.RED_RATIO_START) * progress;
+    const isRed = state.rng() < redRatio;
+
+    const pad = 6;
+    const maxX = layerW - size - pad;
+    const maxY = layerH - size - pad;
+    const x = pad + state.rng() * Math.max(1, maxX - pad);
+    const y = pad + state.rng() * Math.max(1, maxY - pad);
+
+    const node = document.createElement("div");
+    node.className = "target " + (isRed ? "bad" : "good");
+    node.style.width = size + "px";
+    node.style.height = size + "px";
+    node.style.left = Math.round(x) + "px";
+    node.style.top = Math.round(y) + "px";
+    node.dataset.isRed = isRed ? "1" : "0";
+    node.dataset.hit = "0";
+    node.setAttribute("role", "button");
+    node.setAttribute("aria-label", isRed ? "Red target — avoid" : "Green target — tap");
+    node.addEventListener("pointerdown", onTargetPointer, { passive: false });
+
+    el.layer.appendChild(node);
+    state.targets.add(node);
+  }
+
+  function ensureTargetCount(){
+    if (!state.running) return;
+    const progress = Math.min(1, state.score / 400);
+    const desired = Math.round(
+      CFG.BASE_TARGETS + (CFG.MAX_TARGETS - CFG.BASE_TARGETS) * progress
+    );
+    while (state.targets.size < desired) spawnTarget();
+    // if we ever exceed (shouldn't), trim oldest
+    while (state.targets.size > CFG.MAX_TARGETS){
+      const first = state.targets.values().next().value;
+      removeTarget(first);
+    }
+  }
+
+  /* ============================================================
+     EFFECTS
+     ============================================================ */
+  function floatText(x, y, text, color){
+    const f = document.createElement("div");
+    f.className = "float";
+    f.textContent = text;
+    f.style.left = x + "px";
+    f.style.top = y + "px";
+    f.style.color = color;
+    el.layer.appendChild(f);
+    setTimeout(() => { if (f.parentNode) f.parentNode.removeChild(f); }, 700);
+  }
+  function shakeArena(){
+    el.arena.classList.remove("shake");
+    // force reflow to restart animation
+    void el.arena.offsetWidth;
+    el.arena.classList.add("shake");
+    setTimeout(() => el.arena.classList.remove("shake"), 340);
+  }
+
+  /* ============================================================
+     INPUT
+     ============================================================ */
+  function onTargetPointer(e){
+    e.preventDefault();
+    e.stopPropagation();
+    if (!state.running) return;
+    const node = e.currentTarget;
+    if (!node || node.dataset.hit === "1") return;
+    node.dataset.hit = "1";
+
+    const rect = node.getBoundingClientRect();
+    const arenaRect = el.arena.getBoundingClientRect();
+    const cx = rect.left - arenaRect.left + rect.width / 2;
+    const cy = rect.top - arenaRect.top + rect.height / 2;
+
+    if (node.dataset.isRed === "1") {
+      // penalty
+      state.score = Math.max(0, state.score - CFG.RED_PENALTY_POINTS);
+      state.combo = 1;
+      state.comboProgress = 0;
+      updateHud();
+      floatText(cx, cy, "-" + CFG.RED_PENALTY_POINTS, "#ff5d78");
+      node.classList.add("hit");
+      setTimeout(() => removeTarget(node), 220);
+      shakeArena();
+      sfxBad();
+    } else {
+      // award with combo multiplier
+      const gained = CFG.GOOD_POINTS * state.combo;
+      state.score += gained;
+      state.comboProgress += 1;
+      if (state.comboProgress >= CFG.COMBO_STEP && state.combo < CFG.COMBO_MAX){
+        state.combo += 1;
+        state.comboProgress = 0;
+      }
+      updateHud();
+      floatText(cx, cy, "+" + gained, "#4dffa0");
+      node.classList.add("hit");
+      setTimeout(() => removeTarget(node), 220);
+      sfxGood(state.combo);
+    }
+
+    // maintain density
+    ensureTargetCount();
+  }
+
+  /* ============================================================
+     HUD
+     ============================================================ */
+  function updateHud(){
+    el.score.textContent = String(state.score);
+    el.combo.textContent = "x" + state.combo;
+    el.combo.classList.toggle("zero", state.combo <= 1);
+  }
+  function updateTime(remainingMs){
+    const sec = Math.max(0, Math.ceil(remainingMs / 1000));
+    if (sec !== state.lastTickSecond){
+      state.lastTickSecond = sec;
+      el.time.textContent = String(sec);
+      el.time.classList.toggle("warn", sec <= 10);
+    }
+  }
+
+  /* ============================================================
+     GAME LOOP
+     ============================================================ */
+  function tick(now){
+    if (!state.running) return;
+    const remaining = state.endAt - now;
+    if (remaining <= 0){
+      updateTime(0);
+      endGame();
+      return;
+    }
+    updateTime(remaining);
+    // occasionally top up targets if player is fast
+    if (state.targets.size === 0) ensureTargetCount();
+    state.rafId = requestAnimationFrame(tick);
+  }
+
+  /* ============================================================
+     START / END
+     ============================================================ */
+  function resetState(){
+    if (state.rafId){ cancelAnimationFrame(state.rafId); state.rafId = 0; }
+    state.running = false;
+    state.score = 0;
+    state.combo = 1;
+    state.comboProgress = 0;
+    state.gameOverFired = false;
+    state.lastTickSecond = -1;
+    clearTargets();
+    updateHud();
+    el.time.textContent = String(Math.round(CFG.ROUND_MS / 1000));
+    el.time.classList.remove("warn");
+  }
+
+  function startGame(){
+    resetState();
+    // choose RNG (daily seed if provided via menu? keep random for live play)
+    state.rng = Math.random;
+
+    el.startScreen.classList.remove("show");
+    el.overScreen.classList.remove("show");
+    el.hud.classList.add("show");
+    el.arena.classList.add("show");
+
+    // size must be computed after display
+    setTargetSize();
+    ensureTargetCount();
+
+    state.running = true;
+    state.startAt = performance.now();
+    state.endAt = state.startAt + CFG.ROUND_MS;
+    state.rafId = requestAnimationFrame(tick);
+
+    sfxStart();
+    // unlock audio on user gesture path
+    ensureAudio();
+  }
+
+  function endGame(){
+    if (state.gameOverFired) return;
+    state.gameOverFired = true;
+    state.running = false;
+    if (state.rafId){ cancelAnimationFrame(state.rafId); state.rafId = 0; }
+
+    const finalScore = state.score;
+
+    // persist bests
+    const prevBest = state.best;
+    saveBest(finalScore);
+    saveDailyBest(finalScore);
+
+    // update menu record displays
+    el.bestValue.textContent = String(state.best);
+    el.dailyBestValue.textContent = String(loadDailyBest());
+
+    // show over screen
+    el.hud.classList.remove("show");
+    el.arena.classList.remove("show");
+    clearTargets();
+    el.overScreen.classList.add("show");
+
+    el.finalScore.textContent = String(finalScore);
+    el.newBestTag.classList.toggle("show", finalScore > prevBest && finalScore > 0);
+
+    // messages
+    const challenge = readChallengeScore();
+    const beatChallenge = challenge !== null && finalScore > challenge;
+    el.resultMsg.textContent = pickMessage(finalScore, prevBest, challenge, beatChallenge);
+    el.resultSub.textContent = "Personal best: " + state.best +
+      (challenge !== null ? "  •  Challenge: " + challenge : "");
+
+    sfxEnd();
+  }
+
+  function pickMessage(score, prevBest, challenge, beatChallenge){
+    if (challenge !== null){
+      if (beatChallenge) return "You beat the challenge! 🏆";
+      return "So close — " + (challenge - score) + " points short of the challenge.";
+    }
+    if (score === 0) return "Ouch. The reds won this round.";
+    if (score > prevBest && prevBest > 0) return "New personal best! You're on fire.";
+    if (score === prevBest && prevBest > 0) return "You matched your best. One more round?";
+    if (score >= 300) return "Elite reflexes. That was impressive.";
+    if (score >= 150) return "Strong run — you're getting fast.";
+    if (score >= 60) return "Solid. Now push for a higher combo.";
+    return "Warm-up done. Try again!";
+  }
+
+  /* ============================================================
+     SHARING
+     ============================================================ */
+  function buildShareUrl(score){
+    try {
+      const url = new URL(window.location.href);
+      url.hash = "";
+      url.search = "?score=" + encodeURIComponent(String(score));
+      return url.toString();
+    } catch(e){
+      return window.location.href;
+    }
+  }
+
+  function buildShareText(score){
+    return "I scored " + score + " in Don't Tap Red! Can you beat my score?";
+  }
+
+  async function shareScore(){
+    const score = state.score;
+    const text = buildShareText(score);
+    const url = buildShareUrl(score);
+
+    // native share
+    if (navigator.share){
+      try {
+        await navigator.share({ title: "Don't Tap Red!", text, url });
+        return;
+      } catch(err){
+        if (err && err.name === "AbortError") return; // user cancelled
+        // fall through to clipboard
+      }
+    }
+    // clipboard fallback
+    const payload = text + " " + url;
+    let ok = false;
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      try { await navigator.clipboard.writeText(payload); ok = true; } catch(e){ ok = false; }
+    }
+    if (!ok){
+      // legacy fallback
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = payload;
+        ta.setAttribute("readonly","");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        ok = true;
+      } catch(e){ ok = false; }
+    }
+    if (ok){
+      const original = el.shareBtn.textContent;
+      el.shareBtn.textContent = "✓ Copied!";
+      setTimeout(() => { el.shareBtn.textContent = original; }, 1400);
+    } else {
+      const original = el.shareBtn.textContent;
+      el.shareBtn.textContent = "Copy failed";
+      setTimeout(() => { el.shareBtn.textContent = original; }, 1400);
+    }
+  }
+
+  /* ============================================================
+     MUTE
+     ============================================================ */
+  function applyMute(){
+    state.muted = loadMute();
+    el.muteBtn.textContent = state.muted ? "🔇" : "🔊";
+    el.muteBtn.setAttribute("aria-label", state.muted ? "Unmute sound" : "Mute sound");
+  }
+  function toggleMute(){
+    state.muted = !state.muted;
+    saveMute(state.muted);
+    el.muteBtn.textContent = state.muted ? "🔇" : "🔊";
+    el.muteBtn.setAttribute("aria-label", state.muted ? "Unmute sound" : "Mute sound");
+  }
+
+  /* ============================================================
+     MENU / CHALLENGE BANNER
+     ============================================================ */
+  function refreshMenu(){
+    el.bestValue.textContent = String(state.best);
+    el.dailyBestValue.textContent = String(loadDailyBest());
+
+    const challenge = readChallengeScore();
+    if (challenge !== null){
+      el.challengeBanner.textContent = "";
+      const strong = document.createElement("strong");
+      strong.textContent = "Challenge: ";
+      el.challengeBanner.appendChild(strong);
+      el.challengeBanner.appendChild(document.createTextNode(
+        "Beat " + challenge + " points. Can you do it?"
+      ));
+      el.challengeBanner.classList.add("show");
+    } else {
+      el.challengeBanner.classList.remove("show");
+      el.challengeBanner.textContent = "";
+    }
+  }
+
+  function goToMenu(){
+    resetState();
+    el.hud.classList.remove("show");
+    el.arena.classList.remove("show");
+    el.overScreen.classList.remove("show");
+    el.startScreen.classList.add("show");
+    refreshMenu();
+  }
+
+  /* ============================================================
+     RESIZE
+     ============================================================ */
+  let resizeTimer = 0;
+  function onResize(){
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (state.running){
+        setTargetSize();
+        // reposition existing targets so none fall off-screen
+        const w = el.arena.clientWidth, h = el.arena.clientHeight;
+        state.targets.forEach(node => {
+          const size = state.targetSize;
+          node.style.width = size + "px";
+          node.style.height = size + "px";
+          let x = parseFloat(node.style.left) || 0;
+          let y = parseFloat(node.style.top) || 0;
+          x = Math.max(6, Math.min(w - size - 6, x));
+          y = Math.max(6, Math.min(h - size - 6, y));
+          node.style.left = x + "px";
+          node.style.top = y + "px";
+        });
+        ensureTargetCount();
+      }
+    }, 120);
+  }
+
+  /* ============================================================
+     VISIBILITY — pause-ish behavior for hidden tabs
+     ============================================================ */
+  function onVisibility(){
+    if (document.hidden && state.running){
+      // Freeze the timer fairly: end the game cleanly.
+      // (A 30s round should not tick while hidden.)
+      endGame();
+    }
+  }
+
+  /* ============================================================
+     SCROLL PREVENTION during play
+     ============================================================ */
+  function preventScroll(e){
+    if (!state.running) return;
+    // Only prevent if the gesture starts inside the arena
+    if (el.arena.contains(e.target)){
+      if (e.cancelable) e.preventDefault();
+    }
+  }
+
+  /* ============================================================
+     OPTIONAL AD SLOT (disabled by default, no network activated)
+     ============================================================ */
+  function initAdSlot(){
+    // Intentionally disabled. To enable:
+    //  1. Add your ad network's verified script in the page.
+    //  2. Add a container element with id "adSlot".
+    //  3. Call el.adSlot.classList.add("enabled") after consent.
+    // This build does NOT activate any ad network.
+    el.adSlot.classList.remove("enabled");
+  }
+
+  /* ============================================================
+     WIRE UP
+     ============================================================ */
+  function bindEvents(){
+    el.startBtn.addEventListener("click", startGame);
+    el.againBtn.addEventListener("click", startGame);
+    el.menuBtn.addEventListener("click", goToMenu);
+    el.shareBtn.addEventListener("click", shareScore);
+    el.muteBtn.addEventListener("click", toggleMute);
+
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("orientationchange", onResize, { passive: true });
+    document.addEventListener("visibilitychange", onVisibility);
+
+    // prevent accidental scrolling only during gameplay & only inside arena
+    el.arena.addEventListener("touchmove", preventScroll, { passive: false });
+    el.arena.addEventListener("wheel", preventScroll, { passive: false });
+
+    // keyboard support
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && state.running){ endGame(); }
+      if (e.key === " " || e.key === "Enter"){
+        // If start screen is visible and start button focused, let native click happen.
+        // Otherwise, if game over screen visible, start a new game.
+        if (el.overScreen.classList.contains("show")){
+          e.preventDefault();
+          startGame();
+        }
+      }
+    });
+  }
+
+  /* ============================================================
+     BOOT
+     ============================================================ */
+  function boot(){
+    loadBest();
+    applyMute();
+    initAdSlot();
+    bindEvents();
+    refreshMenu();
+    updateHud();
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+
+})();
+</script>
+</body>
+</html>
